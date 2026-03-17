@@ -20,3 +20,6 @@ export const getLeaders = (stat = 'PTS', season = '2024-25', top = 10) =>
 
 export const getScoreboard = (date) =>
   api.get(`/games/scoreboard${date ? `?game_date=${date}` : ''}`)
+
+export const getPlayersByCollege = (college) => api.get(`/players/college?name=${encodeURIComponent(college)}`)
+export const getPlayersByDraftYear = (year) => api.get(`/players/draft?year=${year}`)

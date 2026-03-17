@@ -2,9 +2,8 @@ import { Link, useLocation } from 'react-router-dom'
 
 const links = [
   { to: '/', label: 'Dashboard' },
-  { to: '/players', label: 'Players' },
   { to: '/teams', label: 'Teams' },
-  { to: '/scoreboard', label: 'Scoreboard' },
+  { to: '/stats', label: 'Player Stats' },
 ]
 
 export default function Navbar() {
