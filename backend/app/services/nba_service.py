@@ -347,14 +347,58 @@ def get_recent_games(team_id: int, season: str = SEASON, last_n: int = 10):
 # ---------- Leaders ----------
 
 def get_league_leaders(stat_category: str = "PTS", season: str = SEASON, top: int = 10):
-    leaders = leagueleaders.LeagueLeaders(
-        stat_category_abbreviation=stat_category,
-        season=season,
-        headers=_HEADERS,
-        timeout=TIMEOUT,
-    )
-    data = leaders.get_normalized_dict()
-    rows = data.get("LeagueLeaders", [])
+    """Derive per-game leaders from the cached season totals — no extra HTTP call."""
+    totals = _get_season_totals()
+
+    # Rate stats that are already per-game / percentages
+    RATE_STATS = {"FG_PCT", "FG3_PCT", "FT_PCT"}
+
+    rows = []
+    for pid, r in totals.items():
+        gp = float(r.get("GP") or 0)
+        if gp < 1:
+            continue
+
+        if stat_category in RATE_STATS:
+            val = float(r.get(stat_category) or 0)
+            # Require minimum attempts for shooting % stats
+            if stat_category == "FG_PCT" and float(r.get("FGA") or 0) / gp < 3:
+                continue
+            if stat_category == "FG3_PCT" and float(r.get("FG3A") or 0) / gp < 1:
+                continue
+            if stat_category == "FT_PCT" and float(r.get("FTA") or 0) / gp < 1:
+                continue
+        elif stat_category == "EFF":
+            pts  = float(r.get("PTS")  or 0)
+            reb  = float(r.get("REB")  or 0)
+            ast  = float(r.get("AST")  or 0)
+            stl  = float(r.get("STL")  or 0)
+            blk  = float(r.get("BLK")  or 0)
+            fga  = float(r.get("FGA")  or 0)
+            fgm  = float(r.get("FGM")  or 0)
+            fta  = float(r.get("FTA")  or 0)
+            ftm  = float(r.get("FTM")  or 0) if r.get("FTM") else 0
+            tov  = float(r.get("TOV")  or 0)
+            val  = (pts + reb + ast + stl + blk - (fga - fgm) - (fta - ftm) - tov) / gp
+        elif stat_category == "MIN":
+            val = float(r.get("MIN") or 0) / gp
+        else:
+            val = float(r.get(stat_category) or 0) / gp
+
+        rows.append({
+            "PLAYER_ID": pid,
+            "PLAYER":    r.get("PLAYER", ""),
+            "TEAM":      r.get("TEAM", ""),
+            "GP":        int(gp),
+            stat_category: round(val, 1),
+            "_sort": val,
+        })
+
+    rows.sort(key=lambda x: x["_sort"], reverse=True)
+    for i, row in enumerate(rows):
+        row["RANK"] = i + 1
+        del row["_sort"]
+
     return rows[:top]
 
 
