@@ -53,3 +53,30 @@ def player_gamelog(player_id: int, season: str = "2024-25"):
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{player_id}/percentiles")
+def player_percentiles(player_id: int):
+    try:
+        return nba_service.get_player_percentiles(player_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{player_id}/advanced")
+def player_advanced(player_id: int):
+    try:
+        from app.services.advanced_stats import compute_advanced
+        totals = nba_service._get_season_totals()
+        row = totals.get(player_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="Player stats not found")
+        return compute_advanced(row)
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))

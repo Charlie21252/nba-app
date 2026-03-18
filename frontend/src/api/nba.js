@@ -23,3 +23,12 @@ export const getScoreboard = (date) =>
 
 export const getPlayersByCollege = (college) => api.get(`/players/college?name=${encodeURIComponent(college)}`)
 export const getPlayersByDraftYear = (year) => api.get(`/players/draft?year=${year}`)
+
+export const getOdds = (markets = 'h2h,spreads,totals', sport = 'basketball_nba') =>
+  api.get(`/betting/odds?markets=${markets}&sport=${sport}`)
+export const getEventOdds = (eventId, markets = 'h2h,spreads,totals') =>
+  api.get(`/betting/odds/${eventId}?markets=${markets}`)
+export const getRecommendations = () => api.get('/betting/recommendations')
+
+export const getPlayerAdvanced = (id) => api.get(`/players/${id}/advanced`)
+export const getPlayerPercentiles = (id) => api.get(`/players/${id}/percentiles`)

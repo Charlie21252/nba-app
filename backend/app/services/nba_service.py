@@ -171,6 +171,137 @@ def get_player_career_stats(player_id: int):
     return {"SeasonTotalsRegularSeason": [season_row]}
 
 
+def get_player_percentiles(player_id: int) -> dict:
+    """
+    Compute percentile ranks for a player across 18 stats vs all qualified players
+    (GP >= 10). Also returns 12-bucket histogram data for each stat so the frontend
+    can render a distribution chart without a second request.
+    """
+    from app.services.advanced_stats import compute_advanced
+
+    GP_MIN = 10
+
+    def _s(r, k):
+        v = r.get(k)
+        return float(v) if v else 0.0
+
+    totals = _get_season_totals()
+    row = totals.get(player_id)
+    if not row:
+        raise ValueError(f"No season stats for player {player_id}")
+
+    gp = _s(row, "GP")
+    if gp < 1:
+        raise ValueError("Player has 0 GP")
+
+    # Qualified pool (single pass)
+    pool = {pid: r for pid, r in totals.items() if _s(r, "GP") >= GP_MIN}
+
+    # Pre-compute BPM / versatility for all pool players once (pure math, <10 ms)
+    adv = {pid: compute_advanced(r) for pid, r in pool.items()}
+
+    def _percentile(pval, vals):
+        if not vals:
+            return 0
+        return round(sum(1 for v in vals if v < pval) / len(vals) * 100)
+
+    def _buckets(vals, pval, n=12):
+        lo, hi = min(vals), max(vals)
+        if lo == hi:
+            return [{"range": f"{lo:.1f}", "count": len(vals), "contains_player": True}]
+        step = (hi - lo) / n
+        result = []
+        for i in range(n):
+            b_lo = lo + i * step
+            b_hi = lo + (i + 1) * step
+            last = i == n - 1
+            count = sum(1 for v in vals if b_lo <= v < b_hi or (last and v == b_hi))
+            result.append({
+                "range": f"{b_lo:.1f}–{b_hi:.1f}",
+                "count": count,
+                "contains_player": b_lo <= pval < b_hi or (last and pval <= b_hi),
+            })
+        return result
+
+    # Per-game helpers
+    def pg(r, k):
+        g = _s(r, "GP")
+        return _s(r, k) / g if g > 0 else None
+
+    def p36(r, k):
+        g = _s(r, "GP"); m = _s(r, "MIN")
+        mpg = m / g if g > 0 else 0
+        return ((_s(r, k) / g) * (36 / mpg)) if mpg > 0 else None
+
+    # Build per-stat result
+    pool_items = list(pool.items())  # [(pid, row), ...]
+
+    def _stat_result(pval, all_vals):
+        if pval is None or not all_vals:
+            return {"percentile": None, "player_value": None, "buckets": []}
+        pval_r = round(pval, 2)
+        return {
+            "percentile": _percentile(pval, all_vals),
+            "player_value": pval_r,
+            "buckets": _buckets(all_vals, pval),
+        }
+
+    def _simple(key_fn):
+        pval = key_fn(row)
+        vals = [v for _, r in pool_items if (v := key_fn(r)) is not None]
+        return _stat_result(pval, vals)
+
+    def _adv_stat(adv_key):
+        pval = adv.get(player_id, {}).get(adv_key)
+        vals = [v for pid in pool if (v := adv.get(pid, {}).get(adv_key)) is not None]
+        return _stat_result(pval, vals)
+
+    result_stats = {
+        # Normal – Individual
+        "ppg":         _simple(lambda r: pg(r, "PTS")),
+        "rpg":         _simple(lambda r: pg(r, "REB")),
+        "fg_pct":      _simple(lambda r: _s(r, "FG_PCT") * 100 if _s(r, "FGA") > 0 else None),
+        "fg3_pct":     _simple(lambda r: _s(r, "FG3_PCT") * 100 if _s(r, "FG3A") > 0 else None),
+        "ft_pct":      _simple(lambda r: _s(r, "FT_PCT") * 100 if _s(r, "FTA") > 0 else None),
+        "mpg":         _simple(lambda r: pg(r, "MIN")),
+        # Normal – Team Impact
+        "apg":         _simple(lambda r: pg(r, "AST")),
+        "spg":         _simple(lambda r: pg(r, "STL")),
+        "bpg":         _simple(lambda r: pg(r, "BLK")),
+        "stocks":      _simple(lambda r: ((_s(r,"STL")+_s(r,"BLK"))/_s(r,"GP")) if _s(r,"GP")>0 else None),
+        # Advanced – Individual
+        "ts_pct":      _simple(lambda r: (
+            _s(r,"PTS")/(2*(_s(r,"FGA")+0.44*_s(r,"FTA")))*100
+            if (_s(r,"FGA")+0.44*_s(r,"FTA"))>0 else None)),
+        "efg_pct":     _simple(lambda r: (
+            (_s(r,"FGM")+0.5*_s(r,"FG3M"))/_s(r,"FGA")*100
+            if _s(r,"FGA")>0 else None)),
+        "per36_pts":   _simple(lambda r: p36(r, "PTS")),
+        "per36_reb":   _simple(lambda r: p36(r, "REB")),
+        # Advanced – Team Impact
+        "bpm":         _adv_stat("bpm"),
+        "ast_to":      _simple(lambda r: _s(r,"AST")/_s(r,"TOV") if _s(r,"TOV")>0 else None),
+        "versatility": _adv_stat("versatility"),
+        "per36_ast":   _simple(lambda r: p36(r, "AST")),
+    }
+
+    # Player display values (per-game rates for the UI header row)
+    player_vals = {k: v["player_value"] for k, v in result_stats.items()}
+
+    idx = _get_player_index()
+    p = idx.get(player_id, {})
+    name = f"{p.get('PLAYER_FIRST_NAME','')} {p.get('PLAYER_LAST_NAME','')}".strip()
+
+    return {
+        "player_id": player_id,
+        "player_name": name,
+        "games_played": int(gp),
+        "qualified_pool": len(pool),
+        "player": player_vals,
+        "stats": result_stats,
+    }
+
+
 def get_player_game_log(player_id: int, season: str = SEASON):
     # stats.nba.com/stats/playergamelog is blocked; return empty so UI degrades gracefully
     return {"PlayerGameLog": []}
@@ -190,6 +321,7 @@ def get_team_roster(team_id: int, season: str = SEASON):
     return roster.get_normalized_dict()
 
 
+@lru_cache(maxsize=30)
 def get_team_year_by_year(team_id: int):
     stats = teamyearbyyearstats.TeamYearByYearStats(
         team_id=team_id, headers=_HEADERS, timeout=TIMEOUT
@@ -199,6 +331,7 @@ def get_team_year_by_year(team_id: int):
 
 # ---------- Games ----------
 
+@lru_cache(maxsize=30)
 def get_recent_games(team_id: int, season: str = SEASON, last_n: int = 10):
     finder = leaguegamefinder.LeagueGameFinder(
         team_id_nullable=team_id,

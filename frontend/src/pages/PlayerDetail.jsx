@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { getPlayerInfo, getPlayerCareer, getPlayerGameLog, getPlayersByCollege, getPlayersByDraftYear } from '../api/nba'
+import { getPlayerInfo, getPlayerCareer, getPlayerGameLog, getPlayersByCollege, getPlayersByDraftYear, getPlayerAdvanced, getPlayerPercentiles } from '../api/nba'
 import LoadingSpinner from '../components/LoadingSpinner'
 import StatsTable from '../components/StatsTable'
 import MagicBento from '../components/MagicBento'
 import AnimatedList from '../components/AnimatedList'
+import PlayerLeagueComparison from '../components/PlayerLeagueComparison'
 
 const SEASON_COLS = [
   { key: 'SEASON_ID', label: 'Season' },
@@ -196,6 +197,67 @@ function PlayerDrawer({ title, players, onClose, activeStat }) {
   )
 }
 
+// ── Advanced metrics helpers ───────────────────────────────────────────────
+
+function Tooltip({ text }) {
+  const [show, setShow] = useState(false)
+  return (
+    <span className="relative inline-flex">
+      <button
+        className="w-4 h-4 rounded-full bg-slate-700 text-slate-400 text-[10px] font-bold flex items-center justify-center hover:bg-slate-600 transition-colors"
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+        onFocus={() => setShow(true)}
+        onBlur={() => setShow(false)}
+        tabIndex={0}
+        aria-label="Info"
+      >?</button>
+      {show && (
+        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-300 z-50 shadow-xl leading-relaxed">
+          {text}
+        </span>
+      )}
+    </span>
+  )
+}
+
+const COLOR_MAP = {
+  green:  { bg: 'bg-green-500/10',  border: 'border-green-500/30',  text: 'text-green-400' },
+  yellow: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400' },
+  slate:  { bg: 'bg-slate-900/60',  border: 'border-slate-700/40',  text: 'text-white' },
+}
+
+function AdvancedCard({ label, abbr, value, sub, color = 'slate', tooltip }) {
+  const c = COLOR_MAP[color] ?? COLOR_MAP.slate
+  return (
+    <div className={`rounded-xl p-4 border ${c.bg} ${c.border} space-y-1`}>
+      <div className="flex items-center gap-1.5">
+        <span className="text-xs font-bold uppercase tracking-widest text-slate-400">{abbr}</span>
+        <Tooltip text={tooltip} />
+      </div>
+      <p className={`text-2xl font-black ${c.text}`}>{value}</p>
+      <p className="text-xs text-slate-500">{sub}</p>
+    </div>
+  )
+}
+
+function versatilityColor(v) {
+  if (v == null) return '#64748b'
+  if (v >= 7)   return '#22c55e'   // green
+  if (v >= 4.5) return '#eab308'   // yellow
+  return '#f87171'                  // red
+}
+
+function versatilityLabel(v) {
+  if (v == null) return ''
+  if (v >= 8)   return 'Elite two-way impact player'
+  if (v >= 6.5) return 'High-impact contributor'
+  if (v >= 5)   return 'Solid all-around player'
+  if (v >= 3.5) return 'Specialist role player'
+  return 'Limited statistical footprint'
+}
+
+
 export default function PlayerDetail() {
   const { id } = useParams()
   const [drawerType, setDrawerType] = useState(null) // 'college' | 'draft'
@@ -211,6 +273,14 @@ export default function PlayerDetail() {
   const { data: gamelogData } = useQuery({
     queryKey: ['player', id, 'gamelog'],
     queryFn: () => getPlayerGameLog(Number(id)).then((r) => r.data),
+  })
+  const { data: advancedData } = useQuery({
+    queryKey: ['player', id, 'advanced'],
+    queryFn: () => getPlayerAdvanced(Number(id)).then((r) => r.data),
+  })
+  const { data: percentilesData, isLoading: percentilesLoading } = useQuery({
+    queryKey: ['player', id, 'percentiles'],
+    queryFn: () => getPlayerPercentiles(Number(id)).then((r) => r.data),
   })
 
   const info = infoData?.CommonPlayerInfo?.[0]
@@ -364,6 +434,102 @@ export default function PlayerDetail() {
           ))}
         </MagicBento>
       )}
+
+      {/* Advanced Metrics */}
+      {advancedData && (
+        <div className="bg-slate-800 rounded-xl p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-white">Advanced Metrics</h2>
+            <span className="text-xs text-slate-500">2024-25 · season totals</span>
+          </div>
+
+          {/* Main metrics row */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <AdvancedCard
+              label="True Shooting %"
+              abbr="TS%"
+              value={advancedData.ts_pct != null ? advancedData.ts_pct + '%' : '—'}
+              sub={`Lg avg ${advancedData.league_avg?.ts_pct}%`}
+              color={advancedData.ts_pct != null && advancedData.ts_pct > advancedData.league_avg?.ts_pct ? 'green' : 'slate'}
+              tooltip="Points scored per shooting opportunity (FGA + 0.44×FTA). Combines 2PT, 3PT and free throws into one efficiency number."
+            />
+            <AdvancedCard
+              label="Eff. FG%"
+              abbr="eFG%"
+              value={advancedData.efg_pct != null ? advancedData.efg_pct + '%' : '—'}
+              sub={`Lg avg ${advancedData.league_avg?.efg_pct}%`}
+              color={advancedData.efg_pct != null && advancedData.efg_pct > advancedData.league_avg?.efg_pct ? 'green' : 'slate'}
+              tooltip="FG% adjusted for the extra value of 3-pointers. (FGM + 0.5×3PM) / FGA. Does not include free throws."
+            />
+            <AdvancedCard
+              label="AST / TO"
+              abbr="AST/TO"
+              value={advancedData.ast_to_ratio != null ? advancedData.ast_to_ratio : '—'}
+              sub="Assists per turnover"
+              color={advancedData.ast_to_ratio != null && advancedData.ast_to_ratio >= 2 ? 'green' : advancedData.ast_to_ratio >= 1 ? 'yellow' : 'slate'}
+              tooltip="How many assists a player produces for every turnover. Elite passers sit above 3.0; average is roughly 1.5–2.0."
+            />
+            <AdvancedCard
+              label="Box Plus/Minus"
+              abbr="BPM"
+              value={advancedData.bpm != null ? (advancedData.bpm > 0 ? '+' : '') + advancedData.bpm : '—'}
+              sub="Points vs lg avg"
+              color={advancedData.bpm != null && advancedData.bpm > 2 ? 'green' : advancedData.bpm != null && advancedData.bpm > 0 ? 'yellow' : 'slate'}
+              tooltip="Estimated point differential per 100 possessions above a league-average player. 0 = avg, +5 = All-Star, +8 = MVP-level."
+            />
+          </div>
+
+          {/* Versatility score + Per-36 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Versatility */}
+            <div className="bg-slate-900/60 rounded-xl p-4 space-y-2 border border-slate-700/40">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Versatility Score</span>
+                  <Tooltip text="Custom 0–10 composite. Scoring 30%, Playmaking 20%, Rebounding 20%, Defence (STL+BLK) 30%. Calibrated to 2024-25 NBA elite benchmarks." />
+                </div>
+                <span className="text-2xl font-black" style={{ color: versatilityColor(advancedData.versatility) }}>
+                  {advancedData.versatility ?? '—'}<span className="text-sm font-normal text-slate-500">/10</span>
+                </span>
+              </div>
+              <div className="w-full bg-slate-700 rounded-full h-2">
+                <div
+                  className="h-2 rounded-full transition-all"
+                  style={{
+                    width: `${(advancedData.versatility ?? 0) * 10}%`,
+                    backgroundColor: versatilityColor(advancedData.versatility),
+                  }}
+                />
+              </div>
+              <p className="text-xs text-slate-500">{versatilityLabel(advancedData.versatility)}</p>
+            </div>
+
+            {/* Per-36 */}
+            {advancedData.per36 && (
+              <div className="bg-slate-900/60 rounded-xl p-4 space-y-2 border border-slate-700/40">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Per-36 Minutes</span>
+                  <Tooltip text="All counting stats (PTS, REB, AST, STL, BLK, TOV) scaled to 36 minutes of play. Removes minutes bias — lets you compare starters to bench players fairly." />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {Object.entries(advancedData.per36).map(([stat, val]) => (
+                    <div key={stat} className="text-center">
+                      <p className="text-lg font-bold text-white">{val}</p>
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider">{stat}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* League Comparison */}
+      {percentilesLoading
+        ? <div className="bg-slate-800 rounded-xl p-6 flex items-center justify-center"><LoadingSpinner text="Computing league percentiles..." /></div>
+        : <PlayerLeagueComparison data={percentilesData} />
+      }
 
       {/* Season totals */}
       <div className="bg-slate-800 rounded-xl p-6 space-y-3">
