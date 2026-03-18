@@ -8,11 +8,11 @@ Player endpoints are rebuilt using:
   - stats.nba.com/stats/leagueleaders  PerMode=Totals    (season stats)
 """
 
+import time
 import requests
 from functools import lru_cache
 from nba_api.stats.static import players as static_players, teams as static_teams
 from nba_api.stats.endpoints import (
-    leagueleaders,
     leaguegamefinder,
     teamyearbyyearstats,
     commonteamroster,
@@ -21,22 +21,50 @@ from nba_api.stats.endpoints import (
 
 SEASON = "2024-25"
 
-# Headers accepted by both stats.nba.com and cdn.nba.com
+# Full browser-like headers — stats.nba.com blocks requests that don't look
+# like a real Chrome browser, especially from cloud server IPs.
 _HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
+        "Chrome/124.0.0.0 Safari/537.36"
     ),
     "Accept": "application/json, text/plain, */*",
     "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
     "Referer": "https://www.nba.com/",
     "Origin": "https://www.nba.com",
+    "Host": "stats.nba.com",
     "x-nba-stats-origin": "stats",
     "x-nba-stats-token": "true",
+    "Sec-Fetch-Dest": "empty",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Site": "same-site",
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
 }
 
-TIMEOUT = 15
+# Separate headers for CDN (no Host override)
+_CDN_HEADERS = {k: v for k, v in _HEADERS.items() if k != "Host"}
+
+TIMEOUT = 30
+
+
+def _get_with_retry(url, params=None, headers=None, retries=3, delay=2):
+    """GET with simple retry — stats.nba.com occasionally returns 429 or drops connections."""
+    hdrs = headers or _HEADERS
+    last_err = None
+    for attempt in range(retries):
+        try:
+            r = requests.get(url, headers=hdrs, params=params, timeout=TIMEOUT)
+            r.raise_for_status()
+            return r
+        except Exception as e:
+            last_err = e
+            if attempt < retries - 1:
+                time.sleep(delay * (attempt + 1))
+    raise last_err
 
 
 # ---------- CDN player index (cached for process lifetime) ----------
@@ -45,8 +73,7 @@ TIMEOUT = 15
 def _get_player_index() -> dict:
     """Fetch cdn.nba.com player index and return a dict keyed by PERSON_ID."""
     url = "https://cdn.nba.com/static/json/staticData/playerIndex.json"
-    r = requests.get(url, headers=_HEADERS, timeout=TIMEOUT)
-    r.raise_for_status()
+    r = _get_with_retry(url, headers=_CDN_HEADERS)
     r.encoding = "utf-8"  # force correct decoding of names like Jokić, Dončić
     rs = r.json()["resultSets"][0]
     headers = rs["headers"]
@@ -71,8 +98,7 @@ def _get_season_totals() -> dict:
         "SeasonType": "Regular Season",
         "StatCategory": "PTS",
     }
-    r = requests.get(url, headers=_HEADERS, params=params, timeout=TIMEOUT)
-    r.raise_for_status()
+    r = _get_with_retry(url, params=params, headers=_HEADERS)
     r.encoding = "utf-8"
     rs = r.json()["resultSet"]
     cols = rs["headers"]
