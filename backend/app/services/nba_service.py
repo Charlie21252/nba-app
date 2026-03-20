@@ -26,6 +26,9 @@ SEASON = "2024-25"
 # Disk cache path — persists across Render spin-downs within the same deploy
 _TOTALS_CACHE_FILE = "/tmp/nba_season_totals_cache.json"
 
+# Bundled seed file — committed to the repo, always available as a last resort
+_TOTALS_SEED_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", "season_totals_seed.json")
+
 # Full browser-like headers — stats.nba.com blocks requests that don't look
 # like a real Chrome browser, especially from cloud server IPs.
 _HEADERS = {
@@ -126,17 +129,18 @@ def _get_season_totals() -> dict:
             pass
         return result
     except Exception as live_err:
-        # Live fetch failed — try disk cache before giving up
-        if os.path.exists(_TOTALS_CACHE_FILE):
-            try:
-                with open(_TOTALS_CACHE_FILE, "r", encoding="utf-8") as f:
-                    cached = json.load(f)
-                # JSON keys are always strings; convert back to int to match live behaviour
-                result = {int(k): v for k, v in cached.items()}
-                print(f"⚠ Live fetch failed ({live_err}), serving {len(result)} players from disk cache")
-                return result
-            except Exception:
-                pass
+        # Live fetch failed — try disk cache, then bundled seed file
+        for label, path in [("disk cache", _TOTALS_CACHE_FILE), ("seed file", _TOTALS_SEED_FILE)]:
+            if os.path.exists(path):
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        cached = json.load(f)
+                    # JSON keys are always strings; convert back to int to match live behaviour
+                    result = {int(k): v for k, v in cached.items()}
+                    print(f"⚠ Live fetch failed ({live_err}), serving {len(result)} players from {label}")
+                    return result
+                except Exception:
+                    pass
         raise live_err
 
 
