@@ -8,6 +8,8 @@ Player endpoints are rebuilt using:
   - stats.nba.com/stats/leagueleaders  PerMode=Totals    (season stats)
 """
 
+import json
+import os
 import time
 import requests
 from functools import lru_cache
@@ -20,6 +22,9 @@ from nba_api.stats.endpoints import (
 )
 
 SEASON = "2024-25"
+
+# Disk cache path — persists across Render spin-downs within the same deploy
+_TOTALS_CACHE_FILE = "/tmp/nba_season_totals_cache.json"
 
 # Full browser-like headers — stats.nba.com blocks requests that don't look
 # like a real Chrome browser, especially from cloud server IPs.
@@ -88,7 +93,13 @@ def _get_player_index() -> dict:
 
 @lru_cache(maxsize=1)
 def _get_season_totals() -> dict:
-    """Return leagueleaders Totals for the current season, keyed by PLAYER_ID."""
+    """Return leagueleaders Totals for the current season, keyed by PLAYER_ID.
+
+    On success the result is written to a disk cache so subsequent cold starts
+    (Render free-tier spin-down/up) can serve data immediately without hitting
+    stats.nba.com again.  If the live fetch fails, the disk cache is used as a
+    fallback instead of returning a 500 error to the user.
+    """
     url = "https://stats.nba.com/stats/leagueleaders"
     params = {
         "LeagueID": "00",
@@ -98,15 +109,35 @@ def _get_season_totals() -> dict:
         "SeasonType": "Regular Season",
         "StatCategory": "PTS",
     }
-    r = _get_with_retry(url, params=params, headers=_HEADERS)
-    r.encoding = "utf-8"
-    rs = r.json()["resultSet"]
-    cols = rs["headers"]
-    result = {}
-    for row in rs["rowSet"]:
-        d = dict(zip(cols, row))
-        result[d["PLAYER_ID"]] = d
-    return result
+    try:
+        r = _get_with_retry(url, params=params, headers=_HEADERS)
+        r.encoding = "utf-8"
+        rs = r.json()["resultSet"]
+        cols = rs["headers"]
+        result = {}
+        for row in rs["rowSet"]:
+            d = dict(zip(cols, row))
+            result[d["PLAYER_ID"]] = d
+        # Persist to disk so the next cold start can skip the live fetch
+        try:
+            with open(_TOTALS_CACHE_FILE, "w", encoding="utf-8") as f:
+                json.dump(result, f)
+        except Exception:
+            pass
+        return result
+    except Exception as live_err:
+        # Live fetch failed — try disk cache before giving up
+        if os.path.exists(_TOTALS_CACHE_FILE):
+            try:
+                with open(_TOTALS_CACHE_FILE, "r", encoding="utf-8") as f:
+                    cached = json.load(f)
+                # JSON keys are always strings; convert back to int to match live behaviour
+                result = {int(k): v for k, v in cached.items()}
+                print(f"⚠ Live fetch failed ({live_err}), serving {len(result)} players from disk cache")
+                return result
+            except Exception:
+                pass
+        raise live_err
 
 
 # ---------- Static data ----------
