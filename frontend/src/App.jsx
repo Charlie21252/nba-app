@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { VscHome } from 'react-icons/vsc'
 import { MdSportsBasketball } from 'react-icons/md'
 import { BsLock, BsUnlock } from 'react-icons/bs'
 import Aurora from './components/Aurora'
 import Dock from './components/Dock'
-import Home from './pages/Home'
-import PlayerDetail from './pages/PlayerDetail'
 import PlayerStats from './pages/PlayerStats'
+import PlayerDetail from './pages/PlayerDetail'
 import Betting from './pages/Betting'
 
 const BETTING_PASSWORD = 'SorryBruh123'
@@ -54,12 +52,10 @@ function LockModal({ onSuccess, onClose }) {
             <BsLock size={26} className="text-slate-300" />
           </div>
         </div>
-
         <div className="text-center space-y-1">
           <h2 className="text-lg font-bold text-white">Betting Locked</h2>
           <p className="text-sm text-slate-400">Enter the password to access betting odds & tracker</p>
         </div>
-
         <div className="space-y-2">
           <input
             autoFocus
@@ -72,11 +68,8 @@ function LockModal({ onSuccess, onClose }) {
               error ? 'border-red-500/70 focus:border-red-500' : 'border-slate-700 focus:border-violet-500'
             }`}
           />
-          {error && (
-            <p className="text-xs text-red-400 text-center">Incorrect password — try again</p>
-          )}
+          {error && <p className="text-xs text-red-400 text-center">Incorrect password — try again</p>}
         </div>
-
         <div className="flex gap-3">
           <button
             onClick={onClose}
@@ -92,7 +85,6 @@ function LockModal({ onSuccess, onClose }) {
           </button>
         </div>
       </div>
-
       <style>{`
         @keyframes shake {
           0%,100% { transform: translateX(0) }
@@ -128,11 +120,8 @@ function AppLayout() {
   }, [])
 
   function handleBettingClick() {
-    if (unlocked) {
-      navigate('/betting')
-    } else {
-      setShowLock(true)
-    }
+    if (unlocked) navigate('/betting')
+    else setShowLock(true)
   }
 
   function onUnlocked() {
@@ -142,8 +131,7 @@ function AppLayout() {
   }
 
   const dockItems = [
-    { icon: <VscHome size={24} />,            label: 'Home',    onClick: () => navigate('/') },
-    { icon: <MdSportsBasketball size={24} />, label: 'Stats',   onClick: () => navigate('/stats') },
+    { icon: <MdSportsBasketball size={24} />, label: 'Stats',   onClick: () => navigate('/') },
     {
       icon: unlocked ? <BsUnlock size={22} /> : <BsLock size={22} />,
       label: 'Betting',
@@ -154,35 +142,20 @@ function AppLayout() {
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 relative">
       <div className="fixed inset-0 pointer-events-none z-0">
-        <Aurora
-          colorStops={["#7cff67", "#B19EEF", "#5227FF"]}
-          blend={0.5}
-          amplitude={1.0}
-          speed={1}
-        />
+        <Aurora colorStops={["#7cff67", "#B19EEF", "#5227FF"]} blend={0.5} amplitude={1.0} speed={1} />
       </div>
       <div className="relative z-10">
         <main className="max-w-7xl mx-auto px-4 py-6 pl-28">
           <Routes>
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<PlayerStats />} />
             <Route path="/players/:id" element={<PlayerDetail />} />
-            <Route path="/stats" element={<PlayerStats />} />
             <Route path="/betting" element={<BettingGuard />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
       </div>
-      <Dock
-        items={dockItems}
-        panelWidth={88}
-        baseItemSize={68}
-        magnification={95}
-      />
-      {showLock && (
-        <LockModal
-          onSuccess={onUnlocked}
-          onClose={() => setShowLock(false)}
-        />
-      )}
+      <Dock items={dockItems} panelWidth={88} baseItemSize={68} magnification={95} />
+      {showLock && <LockModal onSuccess={onUnlocked} onClose={() => setShowLock(false)} />}
     </div>
   )
 }
