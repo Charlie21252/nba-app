@@ -1,15 +1,13 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { VscHome, VscOrganization } from 'react-icons/vsc'
+import { VscHome } from 'react-icons/vsc'
 import { MdSportsBasketball } from 'react-icons/md'
 import { BsLock, BsUnlock } from 'react-icons/bs'
 import Aurora from './components/Aurora'
 import Dock from './components/Dock'
 import Home from './pages/Home'
 import PlayerDetail from './pages/PlayerDetail'
-import Teams from './pages/Teams'
-import TeamDetail from './pages/TeamDetail'
 import PlayerStats from './pages/PlayerStats'
 import Betting from './pages/Betting'
 
@@ -51,20 +49,17 @@ function LockModal({ onSuccess, onClose }) {
       <div
         className={`relative w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-8 z-10 shadow-2xl space-y-5 transition-transform ${shake ? 'animate-shake' : ''}`}
       >
-        {/* Icon */}
         <div className="flex justify-center">
           <div className="w-14 h-14 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center">
             <BsLock size={26} className="text-slate-300" />
           </div>
         </div>
 
-        {/* Copy */}
         <div className="text-center space-y-1">
           <h2 className="text-lg font-bold text-white">Betting Locked</h2>
           <p className="text-sm text-slate-400">Enter the password to access betting odds & tracker</p>
         </div>
 
-        {/* Input */}
         <div className="space-y-2">
           <input
             autoFocus
@@ -82,7 +77,6 @@ function LockModal({ onSuccess, onClose }) {
           )}
         </div>
 
-        {/* Buttons */}
         <div className="flex gap-3">
           <button
             onClick={onClose}
@@ -99,7 +93,6 @@ function LockModal({ onSuccess, onClose }) {
         </div>
       </div>
 
-      {/* Shake keyframe */}
       <style>{`
         @keyframes shake {
           0%,100% { transform: translateX(0) }
@@ -114,7 +107,7 @@ function LockModal({ onSuccess, onClose }) {
   )
 }
 
-// ── Route guard (blocks direct URL access too) ────────────────────────────
+// ── Route guard ────────────────────────────────────────────────────────────
 
 function BettingGuard() {
   if (sessionStorage.getItem(SESSION_KEY) === '1') return <Betting />
@@ -128,7 +121,6 @@ function AppLayout() {
   const [showLock, setShowLock] = useState(false)
   const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem(SESSION_KEY) === '1')
 
-  // Keep unlocked state in sync if another tab clears it
   useEffect(() => {
     const sync = () => setUnlocked(sessionStorage.getItem(SESSION_KEY) === '1')
     window.addEventListener('storage', sync)
@@ -150,9 +142,8 @@ function AppLayout() {
   }
 
   const dockItems = [
-    { icon: <VscHome size={24} />,            label: 'Home',  onClick: () => navigate('/') },
-    { icon: <MdSportsBasketball size={24} />, label: 'Stats', onClick: () => navigate('/stats') },
-    { icon: <VscOrganization size={24} />,    label: 'Teams', onClick: () => navigate('/teams') },
+    { icon: <VscHome size={24} />,            label: 'Home',    onClick: () => navigate('/') },
+    { icon: <MdSportsBasketball size={24} />, label: 'Stats',   onClick: () => navigate('/stats') },
     {
       icon: unlocked ? <BsUnlock size={22} /> : <BsLock size={22} />,
       label: 'Betting',
@@ -175,8 +166,6 @@ function AppLayout() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/players/:id" element={<PlayerDetail />} />
-            <Route path="/teams" element={<Teams />} />
-            <Route path="/teams/:id" element={<TeamDetail />} />
             <Route path="/stats" element={<PlayerStats />} />
             <Route path="/betting" element={<BettingGuard />} />
           </Routes>
