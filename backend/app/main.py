@@ -6,10 +6,9 @@ from app.routers import players, teams, games, leaders, betting
 app = FastAPI(title="NBA Analytics API", version="1.0.0")
 
 
-@app.on_event("startup")
-async def warmup_cache():
-    """Pre-fetch season totals and player index on startup so the first user
-    request is fast and stats.nba.com headers are validated at boot time."""
+async def _warmup_background():
+    """Warm the in-process LRU caches in the background so the server starts
+    accepting requests immediately — never blocks Render cold-start timing."""
     from app.services import nba_service
     loop = asyncio.get_event_loop()
     try:
@@ -22,6 +21,14 @@ async def warmup_cache():
         print("✓ Player index cache warmed")
     except Exception as e:
         print(f"⚠ Player index warmup failed: {e}")
+
+
+@app.on_event("startup")
+async def warmup_cache():
+    # Schedule warmup as a fire-and-forget background task so uvicorn binds
+    # the port and starts serving requests without waiting for NBA API calls.
+    asyncio.create_task(_warmup_background())
+
 
 app.add_middleware(
     CORSMiddleware,
