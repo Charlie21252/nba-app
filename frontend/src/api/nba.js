@@ -1,6 +1,8 @@
 import axios from 'axios'
 
-const api = axios.create({ baseURL: '/api' })
+const api = axios.create({ baseURL: '/api', timeout: 9000 })
+
+export const getHealth = () => api.get('/health')
 
 export const searchPlayers = (q) => api.get(`/players/search?q=${encodeURIComponent(q)}`)
 export const getPlayerInfo = (id) => api.get(`/players/${id}/info`)
