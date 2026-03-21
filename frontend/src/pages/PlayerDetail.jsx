@@ -132,23 +132,23 @@ function DraftBadge({ year, round, number, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="group relative flex items-stretch rounded-xl overflow-hidden border border-purple-500/30 hover:border-purple-400/60 transition-all hover:scale-[1.02] bg-gradient-to-r from-slate-900 to-slate-800"
+      className="group relative flex items-stretch rounded-xl overflow-hidden border border-purple-500/30 hover:border-purple-400/60 transition-all hover:scale-[1.02] bg-gradient-to-r from-slate-900 to-slate-800 w-fit max-w-full"
     >
       {/* Year block */}
-      <div className="px-4 py-3 bg-purple-600/20 flex flex-col items-center justify-center border-r border-purple-500/20 min-w-[64px]">
-        <span className="text-xs font-semibold text-purple-400 uppercase tracking-widest">Draft</span>
-        <span className="text-2xl font-black text-white leading-tight">{year}</span>
+      <div className="px-3 sm:px-4 py-2 sm:py-3 bg-purple-600/20 flex flex-col items-center justify-center border-r border-purple-500/20 min-w-[48px] sm:min-w-[64px]">
+        <span className="text-[9px] sm:text-xs font-semibold text-purple-400 uppercase tracking-widest">Draft</span>
+        <span className="text-lg sm:text-2xl font-black text-white leading-tight">{year}</span>
       </div>
       {/* Details block */}
-      <div className="px-4 py-3 flex flex-col justify-center gap-0.5">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500 uppercase tracking-wider">Round</span>
-          <span className="text-sm font-bold text-white">{round}</span>
-          <span className="text-slate-600">·</span>
-          <span className="text-xs text-slate-500 uppercase tracking-wider">Pick</span>
-          <span className="text-xl font-black text-purple-300">#{number}</span>
+      <div className="px-2.5 sm:px-4 py-2 sm:py-3 flex flex-col justify-center gap-0.5 min-w-0">
+        <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+          <span className="text-[9px] sm:text-xs text-slate-500 uppercase tracking-wider">Rd</span>
+          <span className="text-xs sm:text-sm font-bold text-white">{round}</span>
+          <span className="text-slate-600 text-xs">·</span>
+          <span className="text-[9px] sm:text-xs text-slate-500 uppercase tracking-wider">Pick</span>
+          <span className="text-sm sm:text-xl font-black text-purple-300">#{number}</span>
         </div>
-        <span className="text-xs text-slate-500 group-hover:text-purple-400 transition-colors">View draft class →</span>
+        <span className="text-[9px] sm:text-xs text-slate-500 group-hover:text-purple-400 transition-colors">View draft class →</span>
       </div>
     </button>
   )
@@ -324,7 +324,7 @@ export default function PlayerDetail() {
     <div className="space-y-6">
       {/* Hero */}
       {info && (
-        <div className="relative overflow-hidden rounded-2xl bg-slate-900 border border-slate-700/60 min-h-[440px]">
+        <div className="relative overflow-hidden rounded-2xl bg-slate-900 border border-slate-700/60 min-h-[340px] sm:min-h-[440px]">
           {/* Full-body photo */}
           <img
             src={photoUrl}
@@ -334,10 +334,10 @@ export default function PlayerDetail() {
             onError={(e) => { e.currentTarget.style.display = 'none' }}
           />
           {/* Gradient */}
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-900/95 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-900/98 to-slate-900/80 sm:via-slate-900/95 sm:to-transparent pointer-events-none" />
 
           {/* Content */}
-          <div className="relative z-10 p-8 max-w-[54%] flex flex-col gap-5">
+          <div className="relative z-10 p-5 sm:p-8 w-full sm:max-w-[54%] flex flex-col gap-3 sm:gap-5">
             {/* Team logo + abbreviation */}
             <div className="flex items-center gap-2">
               <TeamLogo teamId={info.TEAM_ID} />

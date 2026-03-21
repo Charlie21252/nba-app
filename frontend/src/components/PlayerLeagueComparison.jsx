@@ -123,14 +123,14 @@ function DistributionModal({ statKey, def, data, playerName, onClose }) {
 
         {/* Player callout */}
         <div className={`flex items-center gap-3 rounded-lg px-3 py-2 mb-4 mt-3 ${col.badge}`}>
-          <span className="text-xs text-slate-300 truncate">{playerName}</span>
-          <span className={`text-sm font-black ml-auto ${col.text}`}>{def.fmt(player_value)}</span>
-          <span className={`text-xs font-bold ${col.text}`}>{ordinal(percentile)} pct</span>
+          <span className="text-xs text-slate-300 truncate min-w-0">{playerName}</span>
+          <span className={`text-sm font-black ml-auto shrink-0 ${col.text}`}>{def.fmt(player_value)}</span>
+          <span className={`text-xs font-bold shrink-0 ${col.text}`}>{ordinal(percentile)} pct</span>
         </div>
 
         {/* Histogram */}
         <ResponsiveContainer width="100%" height={180}>
-          <BarChart data={chartData} margin={{ top: 8, right: 4, left: -28, bottom: 0 }}>
+          <BarChart data={chartData} margin={{ top: 22, right: 4, left: -28, bottom: 0 }}>
             <XAxis
               dataKey="label"
               tick={{ fill: '#475569', fontSize: 8 }}
@@ -183,7 +183,7 @@ function DistributionModal({ statKey, def, data, playerName, onClose }) {
           </BarChart>
         </ResponsiveContainer>
 
-        <p className="text-center text-[10px] text-slate-600 mt-2">
+        <p className="text-center text-[10px] text-slate-400 mt-2">
           {totalPlayers} qualified NBA players (≥10 GP) · 2024-25 season
         </p>
       </div>
