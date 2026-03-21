@@ -31,7 +31,11 @@ function DockItem({ children, className = '', onClick, mouseY, spring, distance,
       role="button"
       aria-haspopup="true"
     >
-      {Children.map(children, child => cloneElement(child, { isHovered }))}
+      {Children.map(children, child =>
+        typeof child.type === 'function'
+          ? cloneElement(child, { isHovered })
+          : child
+      )}
     </motion.div>
   );
 }
@@ -108,6 +112,7 @@ export default function Dock({
           >
             <DockIcon>{item.icon}</DockIcon>
             <DockLabel>{item.label}</DockLabel>
+            <span className="dock-mobile-label">{item.label}</span>
           </DockItem>
         ))}
       </motion.div>

@@ -145,7 +145,7 @@ function AppLayout() {
         <Aurora colorStops={["#7cff67", "#B19EEF", "#5227FF"]} blend={0.5} amplitude={1.0} speed={1} />
       </div>
       <div className="relative z-10">
-        <main className="max-w-7xl mx-auto px-4 py-6 pl-28">
+        <main className="max-w-7xl mx-auto px-4 py-6 pb-28 md:pl-28 md:pb-6">
           <Routes>
             <Route path="/" element={<PlayerStats />} />
             <Route path="/players/:id" element={<PlayerDetail />} />

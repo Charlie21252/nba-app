@@ -56,3 +56,51 @@
   color: #fff;
   pointer-events: none;
 }
+
+.dock-mobile-label {
+  display: none;
+  font-size: 0.6rem;
+  color: rgba(255, 255, 255, 0.55);
+  text-align: center;
+  pointer-events: none;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+/* ── Mobile: bottom horizontal dock ─────────────────────────────────────── */
+@media (max-width: 768px) {
+  .dock-outer {
+    left: 50%;
+    top: auto;
+    bottom: 1rem;
+    transform: translateX(-50%);
+    width: auto;
+    max-width: calc(100% - 2rem);
+  }
+
+  .dock-panel {
+    flex-direction: row !important;
+    width: auto !important;
+    height: auto;
+    gap: 0.5rem;
+    padding: 0.5rem 1.25rem;
+    border-radius: 2rem;
+  }
+
+  .dock-item {
+    flex-direction: column !important;
+    width: 60px !important;
+    height: 60px !important;
+    padding: 0.5rem 0.4rem 0.25rem;
+    gap: 3px;
+    border-radius: 14px;
+  }
+
+  .dock-label {
+    display: none;
+  }
+
+  .dock-mobile-label {
+    display: block;
+  }
+}
