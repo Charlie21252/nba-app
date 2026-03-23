@@ -152,6 +152,7 @@ function DistributionModal({ statKey, def, data, playerName, onClose }) {
                 fontSize: 11,
                 padding: '6px 10px',
               }}
+              itemStyle={{ color: '#facc15' }}
               formatter={(v) => [v + ' players', 'Count']}
               labelFormatter={(l) => `~${l}`}
             />
